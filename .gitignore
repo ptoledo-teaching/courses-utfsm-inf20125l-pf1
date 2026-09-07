@@ -1,0 +1,4 @@
+workspace/code/armamento
+workspace/tests/*.diff
+workspace/tests/*.err
+workspace/tests/*.out
