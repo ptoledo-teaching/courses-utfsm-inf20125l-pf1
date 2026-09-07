@@ -83,9 +83,43 @@ El programa implementado en `armamento.c` recibe cinco números enteros, uno por
 4. La desviación inicial del sistema de puntería
 5. La cantidad de ciclos de calibración que deben ejecutarse
 
-Cada objetivo requiere exactamente dos torpedos. La cantidad restante se calcula restando de la carga inicial todos los torpedos requeridos por los objetivos.
+### Organización interna del programa
+
+El programa representa la información mediante estructuras diferentes según la etapa del procesamiento:
+
+- `MissionPlan` conserva los cinco valores recibidos como entrada
+- `InventoryState` conserva las cantidades calculadas para preparar el armamento
+- `CalibrationState` conserva la desviación y el avance de la calibración
+- `TargetingStatus` representa si el sistema de puntería está `LISTA` o `PENDIENTE`
+- `MissionStatus` representa si la misión queda `AUTORIZADA` o `CANCELADA`
+- `MissionReport` reúne el estado final del inventario, la calibración, la puntería y la misión
+
+La variable `debug_enabled` y la función `debug_valor` no participan en los cálculos de la misión. Su propósito es controlar los mensajes utilizados para observar esos cálculos durante la depuración.
+
+### Secuencia de procesamiento
+
+El procesamiento de una misión comienza en `main` y se desarrolla en las siguientes etapas:
+
+1. `read_plan` coordina la lectura. Primero, `read_inventory_plan` obtiene los datos relacionados con el armamento y, luego, `read_calibration_plan` obtiene los datos del sistema de puntería. Cada lectura individual se realiza mediante `read_integer`.
+2. `plan_is_valid` comprueba los datos antes de realizar los cálculos. Las cantidades del inventario y la desviación inicial no pueden ser negativas. La cantidad de ciclos debe encontrarse entre cero y el máximo definido por `MAXIMUM_CALIBRATION_CYCLES`.
+3. `process_plan` coordina la preparación de los resultados. Esta función construye progresivamente un `MissionReport` mediante las etapas de inventario, calibración y evaluación.
+4. `prepare_inventory` determina cuántos torpedos requiere la misión y cuántos quedan disponibles después de asignarlos a los objetivos.
+5. `calibrate_targeting` crea el estado inicial de calibración y ejecuta los ciclos solicitados. Cada ciclo actualiza la desviación actual e incrementa la cantidad de ciclos completados.
+6. `evaluate_targeting` determina el estado de la puntería utilizando la desviación obtenida después de la calibración.
+7. `evaluate_mission` combina el estado de la puntería con el inventario disponible y determina si la misión puede ser autorizada.
+8. `print_report` muestra el informe. Antes de imprimir los estados, las funciones `targeting_status_text` y `mission_status_text` convierten sus valores internos al texto correspondiente.
+
+Un resultado incorrecto puede originarse en una etapa y hacerse visible en otra posterior. Por ejemplo, un cálculo incorrecto del inventario afecta tanto las cantidades impresas como la decisión final de la misión. Del mismo modo, un problema durante la calibración puede modificar el estado de la puntería y, como consecuencia, la autorización final.
+
+### Reglas de cálculo y decisión
+
+Cada objetivo requiere exactamente dos torpedos. La cantidad de torpedos restante se calcula restando de la carga inicial todos los torpedos requeridos por los objetivos.
+
+La reserva de torpedos no se descuenta del inventario y se define como la cantidad mínima de torpedos que debe quedar disponible después de asignar los torpedos requeridos.
 
 Cada ciclo de calibración reduce la desviación en una unidad. La desviación nunca puede ser negativa: una vez que alcanza cero, los ciclos adicionales deben mantenerla en ese valor. El sistema de puntería se considera `LISTA` cuando su desviación final es menor o igual que dos; en caso contrario, se considera `PENDIENTE`.
+
+Para las entradas válidas de este laboratorio, el resultado de la calibración va a corresponder a el máximo entre cero y la desviación inicial menos los ciclos de calibración. Osea, si la calibración da un número negativo, el resultado de la calibración se limita a 0.
 
 La misión se considera `AUTORIZADA` solamente cuando se cumplen ambas condiciones:
 
